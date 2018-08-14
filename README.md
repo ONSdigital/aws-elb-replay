@@ -15,6 +15,15 @@ will replay traffic from 1st August at 10:00am.
 
 Logs should be in the current working directory, with the pattern `logs/YEAR/MONTH/DAY/filename.log`
 
+### Tests
+
+The tests rely on date and time calculations, so a consistent timezone is required, e.g.
+
+```
+export TZ=UTC
+go test .
+```
+
 ### Licence
 
 Copyright ©‎ 2018, Crown Copyright (Office for National Statistics) (https://www.ons.gov.uk)
