@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -18,6 +19,32 @@ import (
 	"sync"
 	"time"
 )
+
+// Create a HTTP client with sensible defaults
+var httpClient = &http.Client{
+	// Disable redirects, some requests have endless redirect loops
+	CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
+	},
+	// Set a timeout
+	Timeout: time.Second * 10,
+	// Disable connection pooling and allow insecure TLS
+	Transport: &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+			DualStack: true,
+		}).DialContext,
+		MaxIdleConns:          0,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+	},
+}
 
 // errRequestTooLate is sent when the request is over 5 seconds old
 var errRequestTooLate = errors.New("request too late")
@@ -63,31 +90,12 @@ func init() {
 }
 
 func main() {
-	// Prepare the HTTP client
-	setupHTTPClient()
-
 	// Get requests from channel
 	defer requestWg.Wait()
 	requestLoop()
 
 	// Replay log files
 	logFileLoop()
-}
-
-func setupHTTPClient() {
-	// Disable redirects, some requests have endless redirect loops
-	http.DefaultClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-		return http.ErrUseLastResponse
-	}
-
-	// Set a sensible timeout
-	http.DefaultClient.Timeout = time.Second * 10
-
-	// Disable connection pooling
-	http.DefaultTransport.(*http.Transport).MaxIdleConns = 0
-
-	// Allow invalid SSL cert
-	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 }
 
 func requestLoop() {
@@ -265,7 +273,7 @@ func sendRequest(u *url.URL) {
 		u.Host = testHostFlag
 	}
 
-	res, err := http.Get(u.String())
+	res, err := httpClient.Get(u.String())
 	if err != nil {
 		log.Printf("Error sending request for %s: %s", u.String(), err)
 		return

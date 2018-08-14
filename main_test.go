@@ -9,25 +9,23 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestSetupHTTPClient(t *testing.T) {
-	setupHTTPClient()
-
-	Convey("setupHTTPClient sets a sensible timeout", t, func() {
-		So(http.DefaultClient.Timeout, ShouldEqual, time.Second*10)
+func TestHTTPClient(t *testing.T) {
+	Convey("HTTP client sets a sensible timeout", t, func() {
+		So(httpClient.Timeout, ShouldEqual, time.Second*10)
 	})
 
-	Convey("setupHTTPClient doesn't follow redirects", t, func() {
+	Convey("HTTP client doesn't follow redirects", t, func() {
 		req, _ := http.NewRequest("GET", "/", nil)
-		err := http.DefaultClient.CheckRedirect(req, nil)
+		err := httpClient.CheckRedirect(req, nil)
 		So(err, ShouldEqual, http.ErrUseLastResponse)
 	})
 
-	Convey("setupHTTPClient disables connection pooling", t, func() {
-		So(http.DefaultTransport.(*http.Transport).MaxIdleConns, ShouldEqual, 0)
+	Convey("HTTP client disables connection pooling", t, func() {
+		So(httpClient.Transport.(*http.Transport).MaxIdleConns, ShouldEqual, 0)
 	})
 
-	Convey("setupHTTPClient allows invalid TLS certificates", t, func() {
-		So(http.DefaultTransport.(*http.Transport).TLSClientConfig.InsecureSkipVerify, ShouldBeTrue)
+	Convey("HTTP client allows invalid TLS certificates", t, func() {
+		So(httpClient.Transport.(*http.Transport).TLSClientConfig.InsecureSkipVerify, ShouldBeTrue)
 	})
 }
 
