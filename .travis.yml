@@ -1,1 +1,3 @@
 language: go
+before_install:
+- export TZ=UTC
