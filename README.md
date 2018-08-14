@@ -1,4 +1,4 @@
-aws-elb-replay
+aws-elb-replay [![Build Status](https://travis-ci.org/ONSdigital/aws-elb-replay.svg?branch=master)](https://travis-ci.org/ONSdigital/aws-elb-replay)
 ==============
 
 Replays Elastic Load Balancer logs against a test host.
