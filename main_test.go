@@ -38,7 +38,7 @@ func TestBlockAndSend(t *testing.T) {
 		var err error
 
 		go func() {
-			replayDate := time.Now().Add(timeOffset).Add(-time.Hour)
+			replayDate := time.Now().Add(timeOffset)
 			replayDateStr := replayDate.Format(timeLayout)
 			err = blockAndSend(countChan, requestChan, replayDateStr+` lb-name 1.1.1.1:1 2.2.2.2:2 0.01 0.02 0.03 100 100 0 0 "GET https://some-url:443/some/path HTTP/1.1" "Some Browser" TLS-ALGO TLSv1.2`)
 		}()
@@ -77,7 +77,7 @@ func TestBlockAndSend(t *testing.T) {
 		start := time.Now()
 
 		go func() {
-			replayDate := time.Now().Add(timeOffset).Add(-time.Hour).Add(time.Second * 3)
+			replayDate := time.Now().Add(timeOffset).Add(time.Second * 3)
 			replayDateStr := replayDate.Format(timeLayout)
 			err = blockAndSend(countChan, requestChan, replayDateStr+` lb-name 1.1.1.1:1 2.2.2.2:2 0.01 0.02 0.03 100 100 0 0 "GET https://some-url:443/some/path HTTP/1.1" "Some Browser" TLS-ALGO TLSv1.2`)
 		}()
@@ -118,7 +118,7 @@ func TestBlockAndSend(t *testing.T) {
 		var logEntry string
 
 		go func() {
-			replayDate := time.Now().Add(timeOffset).Add(-time.Hour)
+			replayDate := time.Now().Add(timeOffset)
 			replayDateStr := replayDate.Format(timeLayout)
 			logEntry = replayDateStr + ` 1.1.1.1:1 2.2.2.2:2 0.01 0.02 0.03 100 100 0 0 "GET https://some-url:443/some/path HTTP/1.1" "Some Browser" TLS-ALGO TLSv1.2`
 			err = blockAndSend(countChan, requestChan, logEntry)
@@ -158,7 +158,7 @@ func TestBlockAndSend(t *testing.T) {
 		var logEntry string
 
 		go func() {
-			replayDate := time.Now().Add(timeOffset).Add(-time.Hour).Add(-time.Second * 5)
+			replayDate := time.Now().Add(timeOffset).Add(-time.Second * 5)
 			replayDateStr := replayDate.Format(timeLayout)
 			logEntry = replayDateStr + ` lb-name 1.1.1.1:1 2.2.2.2:2 0.01 0.02 0.03 100 100 0 0 "GET https://some-url:443/some/path HTTP/1.1" "Some Browser" TLS-ALGO TLSv1.2`
 			err = blockAndSend(countChan, requestChan, logEntry)
