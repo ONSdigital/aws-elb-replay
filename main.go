@@ -125,7 +125,10 @@ func requestLoop() {
 						requestWg.Done()
 						<-sem
 					}()
-					sendRequest(req.u)
+					err := sendRequest(req.u)
+					if err != nil {
+						log.Printf("error in sendRequest: %s", err)
+					}
 				}()
 			}
 		}
@@ -260,7 +263,7 @@ func getTimestampAndURL(req string) (time.Time, *url.URL, error) {
 }
 
 // Sends a request and consumes the response body
-func sendRequest(u *url.URL) {
+func sendRequest(u *url.URL) error {
 	defer func() {
 		// Ignore the panic so the replayer continues
 		// TODO probably want to handle this properly, or at least log it
@@ -275,8 +278,7 @@ func sendRequest(u *url.URL) {
 
 	res, err := httpClient.Get(u.String())
 	if err != nil {
-		log.Printf("Error sending request for %s: %s", u.String(), err)
-		return
+		return fmt.Errorf("Error sending request for %s: %s", u.String(), err)
 	}
 
 	defer res.Body.Close()
@@ -285,4 +287,6 @@ func sendRequest(u *url.URL) {
 	// since connection pooling is disabled, but this forces the remote host to
 	// actually return all of the bytes we requested.
 	io.Copy(ioutil.Discard, res.Body)
+
+	return nil
 }

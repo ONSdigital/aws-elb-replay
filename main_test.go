@@ -2,7 +2,9 @@ package main
 
 import (
 	"errors"
+	"io"
 	"net/http"
+	"net/url"
 	"testing"
 	"time"
 
@@ -237,5 +239,100 @@ func TestGetTimestampAndURL(t *testing.T) {
 				So(e.Error(), ShouldEqual, test.e.Error())
 			}
 		}
+	})
+}
+
+type testTransport struct {
+	req         *http.Request
+	resp        *http.Response
+	shouldError bool
+}
+
+type testReader struct {
+	io.ReadCloser
+	isRead      bool
+	shouldError bool
+	shouldPanic bool
+}
+
+func (tr *testTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	tr.req = req
+	if tr.shouldError {
+		return nil, errors.New("transport error")
+	}
+	tr.resp = &http.Response{
+		Body: &testReader{},
+	}
+	return tr.resp, nil
+}
+
+func (tr *testReader) Read([]byte) (int, error) {
+	if tr.shouldPanic {
+		panic("read panic")
+	}
+	tr.isRead = true
+	if tr.shouldError {
+		return 0, errors.New("read error")
+	}
+	return 0, io.EOF
+}
+
+func TestSendRequest(t *testing.T) {
+	oldCli := httpClient
+	defer func() {
+		httpClient = oldCli
+	}()
+
+	transport := &testTransport{}
+	httpClient = &http.Client{
+		Transport: transport,
+	}
+
+	u, _ := url.Parse("http://test-host/test/path")
+
+	Convey("sendRequest should pass a request to the httpClient", t, func() {
+		err := sendRequest(u)
+		So(err, ShouldBeNil)
+		So(transport.req.Host, ShouldEqual, "test-host")
+	})
+
+	Convey("sendRequest should use testHostFlag if it's set", t, func() {
+		testHostFlag = "another-host"
+		err := sendRequest(u)
+		testHostFlag = ""
+		So(err, ShouldBeNil)
+		So(transport.req.Host, ShouldEqual, "another-host")
+	})
+
+	Convey("sendRequest returns HTTP client errors", t, func() {
+		transport.shouldError = true
+		err := sendRequest(u)
+		transport.shouldError = false
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldEqual, "Error sending request for http://another-host/test/path: Get http://another-host/test/path: transport error")
+	})
+
+	Convey("sendRequest reads response body", t, func() {
+		err := sendRequest(u)
+		So(err, ShouldBeNil)
+		So(transport.resp.Body.(*testReader).isRead, ShouldBeTrue)
+	})
+
+	Convey("sendRequest ignores read errors", t, func() {
+		transport.resp.Body.(*testReader).shouldError = true
+		err := sendRequest(u)
+		transport.resp.Body.(*testReader).shouldError = false
+		So(err, ShouldBeNil)
+		So(transport.resp.Body.(*testReader).isRead, ShouldBeTrue)
+	})
+
+	Convey("sendRequest ignores panics", t, func() {
+		transport.resp.Body.(*testReader).shouldPanic = true
+		var err error
+		So(func() {
+			err = sendRequest(u)
+		}, ShouldNotPanic)
+		transport.resp.Body.(*testReader).shouldPanic = false
+		So(err, ShouldBeNil)
 	})
 }
