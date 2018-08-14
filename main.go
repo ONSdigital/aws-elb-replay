@@ -152,7 +152,14 @@ func logFileLoop() {
 			filesWg.Add(1)
 			go func() {
 				defer filesWg.Done()
-				replayLogFile(path)
+
+				f, err := os.Open(path)
+				if err != nil {
+					panic(err)
+				}
+
+				defer f.Close()
+				replayLogFile(f)
 			}()
 		}
 
@@ -175,20 +182,14 @@ func findLogFiles(startDate time.Time) []string {
 }
 
 // Replays a log file
-func replayLogFile(path string) {
-	f, err := os.Open(path)
-	if err != nil {
-		panic(err)
-	}
-
-	defer f.Close()
-
-	rdr := bufio.NewReader(f)
+func replayLogFile(r io.Reader) {
+	rdr := bufio.NewReader(r)
 
 	for {
 		b, err := rdr.ReadBytes('\n')
 		if err != nil && err != io.EOF {
-			panic(err)
+			log.Printf("error in replayLogFile: %s", err)
+			break
 		}
 
 		if len(b) > 0 {

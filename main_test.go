@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -334,5 +335,19 @@ func TestSendRequest(t *testing.T) {
 		}, ShouldNotPanic)
 		transport.resp.Body.(*testReader).shouldPanic = false
 		So(err, ShouldBeNil)
+	})
+}
+
+func TestReplayLogFile(t *testing.T) {
+	Convey("replayLogFile reads from a reader", t, func() {
+		r := strings.NewReader("1\n2\n3\n")
+		replayLogFile(r)
+	})
+
+	Convey("replayLogFile returns on read errors", t, func() {
+		tr := &testReader{
+			shouldError: true,
+		}
+		replayLogFile(tr)
 	})
 }
