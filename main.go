@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"crypto/tls"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -17,6 +18,9 @@ import (
 	"sync"
 	"time"
 )
+
+// errRequestTooLate is sent when the request is over 5 seconds old
+var errRequestTooLate = errors.New("request too late")
 
 // Flag variables
 var testHostFlag = ""
@@ -177,7 +181,10 @@ func replayLogFile(path string) {
 		}
 
 		if len(b) > 0 {
-			blockAndSend(strings.TrimSpace(string(b)))
+			err := blockAndSend(countChan, requestChan, strings.TrimSpace(string(b)))
+			if err != nil && err != errRequestTooLate {
+				log.Printf("error in blockAndSend: %s", err)
+			}
 		}
 
 		if err == io.EOF {
@@ -187,21 +194,10 @@ func replayLogFile(path string) {
 }
 
 // Waits until the correct time to send the next request
-func blockAndSend(req string) {
-	matches := lineRe.FindStringSubmatch(req)
-
-	// 17 is the number of "columns" in an ELB log file (see lineRe)
-	if len(matches) != 17 {
-		log.Printf("Failed to parse log entry: `%s`", req)
-		return
-	}
-
-	reqDateStr := matches[1]
-	reqPathStr := matches[15]
-
-	reqDate, err := time.Parse(timeLayout, reqDateStr)
+func blockAndSend(countChan chan int, requestChan chan request, req string) error {
+	reqDate, u, err := getTimestampAndURL(req)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("error reading log entry: %s", err)
 	}
 
 	// Work out when the request should be sent
@@ -214,12 +210,7 @@ func blockAndSend(req string) {
 		// This handles scenarios where requests are getting backed up,
 		// or where the log file has entries earlier than the initial
 		// offset used by the replayer
-		return
-	}
-
-	u, err := url.Parse(reqPathStr)
-	if err != nil {
-		panic(err)
+		return errRequestTooLate
 	}
 
 	if replayDate.After(time.Now()) {
@@ -230,6 +221,34 @@ func blockAndSend(req string) {
 
 	countChan <- 1
 	requestChan <- request{u, replayDate}
+
+	return nil
+}
+
+// Get the time and URL from the ELB log entry
+func getTimestampAndURL(req string) (time.Time, *url.URL, error) {
+	matches := lineRe.FindStringSubmatch(req)
+
+	// 17 is the number of "columns" in an ELB log file (see lineRe)
+	if len(matches) != 17 {
+		return time.Time{}, nil, fmt.Errorf("failed to parse log entry: `%s`", req)
+	}
+
+	reqDateStr := matches[1]
+	reqPathStr := matches[15]
+
+	reqDate, err := time.Parse(timeLayout, reqDateStr)
+	if err != nil {
+		log.Printf("Failed to parse timestamp `%s` for `%s`: %s", reqDateStr, req, err)
+		return time.Time{}, nil, err
+	}
+
+	u, err := url.Parse(reqPathStr)
+	if err != nil {
+		return time.Time{}, nil, err
+	}
+
+	return reqDate, u, nil
 }
 
 // Sends a request and consumes the response body
