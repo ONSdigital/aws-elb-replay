@@ -251,12 +251,18 @@ func blockAndSend(countChan chan int, requestChan chan request, req string) erro
 		// This handles scenarios where requests are getting backed up,
 		// or where the log file has entries earlier than the initial
 		// offset used by the replayer
+		if debugMode {
+			log.Printf("request too late: %s\n", req)
+		}
 		return errRequestTooLate
 	}
 
 	if replayDate.After(time.Now()) {
 		// Wait until the right time to send the request
 		waitTime := replayDate.Sub(time.Now())
+		if debugMode {
+			log.Printf("waiting: %+v\n", waitTime)
+		}
 		time.Sleep(waitTime)
 	}
 
