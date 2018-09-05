@@ -218,7 +218,11 @@ func replayLogFile(r io.Reader) {
 		}
 
 		if len(b) > 0 {
-			err := blockAndSend(countChan, requestChan, strings.TrimSpace(string(b)))
+			reqLine := strings.TrimSpace(string(b))
+			if debugMode {
+				log.Printf("replaying line: %s\n", reqLine)
+			}
+			err := blockAndSend(countChan, requestChan, reqLine)
 			if err != nil && err != errRequestTooLate {
 				log.Printf("error in blockAndSend: %s", err)
 			}
