@@ -188,6 +188,10 @@ func logFileLoop() {
 
 // Finds log files for the current offset
 func findLogFiles(startDate time.Time) []string {
+	// ELB log files are named when they are written, i.e. at the end of an hour
+	// so log lines starting at 10am are in a file named 11am
+	startDate = startDate.Add(time.Hour)
+
 	logPath := fmt.Sprintf("logs/%04d/%02d/%02d/*%04d%02d%02dT%02d00Z*", startDate.Year(), startDate.Month(), startDate.Day(), startDate.Year(), startDate.Month(), startDate.Day(), startDate.Hour())
 
 	if debugMode {
