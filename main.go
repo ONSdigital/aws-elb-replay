@@ -53,6 +53,7 @@ var errRequestTooLate = errors.New("request too late")
 var testHostFlag = ""
 var offsetFlag = 14
 var concurrencyFlag = 50
+var debugMode = false
 
 // Useful defaults
 var timeOffset = -1 * time.Hour * 24
@@ -84,6 +85,7 @@ func init() {
 	flag.IntVar(&offsetFlag, "offset", 14, "the number of days to offset by")
 	flag.IntVar(&concurrencyFlag, "concurrency", 50, "the number of concurrent requests to send")
 	flag.StringVar(&testHostFlag, "host", "", "the test host to replay traffic against")
+	flag.BoolVar(&debugMode, "debug", false, "enable debug mode")
 	flag.Parse()
 
 	timeOffset *= time.Duration(offsetFlag)
@@ -139,11 +141,18 @@ func requestLoop() {
 func logFileLoop() {
 	for {
 		startDate := time.Now().Add(timeOffset)
+		if debugMode {
+			log.Printf("start date: %+v\n", startDate)
+		}
+
 		logFiles := findLogFiles(startDate)
 
 		if len(logFiles) == 0 {
 			// If we don't find any, we assume we're done and allow the
 			// replayer to exit once in-flight requests have finished
+			if debugMode {
+				log.Println("no files found, exiting logFileLoop")
+			}
 			break
 		}
 
@@ -153,9 +162,17 @@ func logFileLoop() {
 			go func() {
 				defer filesWg.Done()
 
+				if debugMode {
+					log.Println("opening log file:", path)
+				}
+
 				f, err := os.Open(path)
 				if err != nil {
 					panic(err)
+				}
+
+				if debugMode {
+					log.Println("replaying log file:", path)
 				}
 
 				defer f.Close()
@@ -173,9 +190,17 @@ func logFileLoop() {
 func findLogFiles(startDate time.Time) []string {
 	logPath := fmt.Sprintf("logs/%04d/%02d/%02d/*%04d%02d%02dT%02d00Z*", startDate.Year(), startDate.Month(), startDate.Day(), startDate.Year(), startDate.Month(), startDate.Day(), startDate.Hour())
 
+	if debugMode {
+		log.Println("searching for log files:", logPath)
+	}
+
 	matches, err := filepath.Glob(logPath)
 	if err != nil {
 		panic(err)
+	}
+
+	if debugMode {
+		log.Printf("found matches: %+v\n", matches)
 	}
 
 	return matches
