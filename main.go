@@ -252,7 +252,7 @@ func blockAndSend(countChan chan int, requestChan chan request, req string) erro
 		// or where the log file has entries earlier than the initial
 		// offset used by the replayer
 		if debugMode {
-			log.Printf("request too late: %s\n", req)
+			log.Printf("request too late (replayDate: %+v): %s\n", replayDate, req)
 		}
 		return errRequestTooLate
 	}
